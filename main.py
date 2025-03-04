@@ -44,5 +44,40 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
+@tree.command(name='ban', description='Bans a user from the server.')
+@commands.has_permissions(ban_members=True)
+async def ban(interaction: discord.Interaction, member: discord.Member, reason: str = 'No reason provided.'):
+    try:
+        dm = await member.create_dm()
+        dm_embed = discord.Embed(title=f'You have been banned from {interaction.guild.name}.', 
+                               description=f'Reason: {reason}\nModerator: {interaction.user.name}', 
+                               color=discord.Color.red())
+        await dm.send(embed=dm_embed)
+    except discord.Forbidden:
+        pass  # User has DMs disabled or has blocked the bot
+    
+    await member.ban(reason=reason)
+    embed = discord.Embed(title=f'✅ {member.name} has been banned.', 
+                         description=f'Reason: {reason}', 
+                         color=discord.Color.green())
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name='unban', description='Unbans a user from the server.')
+@commands.has_permissions(ban_members=True)
+async def unban(interaction: discord.Interaction, member: discord.Member):
+    await member.unban()
+    embed = discord.Embed(title=f'✅ {member.name} has been unbanned.', 
+                         color=discord.Color.green())
+    await interaction.response.send_message(embed=embed)
+
+# ADVERTISING COMMANDS
+
+@tree.command(name='invite', description='Generates an invite link for the bot.')
+async def invite(interaction: discord.Interaction):
+    invite_link = discord.utils.oauth_url(bot.user.id, permissions=discord.Permissions(administrator=True))
+    embed = discord.Embed(title='Invite Link', description=f"[Click Here!](<{invite_link}>)", color=discord.Color.green())
+    
+    await interaction.response.send_message(embed=embed)
+
 if __name__ == "__main__":
     bot.run(TOKEN)
