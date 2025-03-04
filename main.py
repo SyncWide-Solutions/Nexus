@@ -76,7 +76,12 @@ async def unban(interaction: discord.Interaction, member: discord.Member):
 async def invite(interaction: discord.Interaction):
     invite_link = discord.utils.oauth_url(bot.user.id, permissions=discord.Permissions(administrator=True))
     embed = discord.Embed(title='Invite Link', description=f"[Click Here!](<{invite_link}>)", color=discord.Color.green())
-    
+
+    await interaction.response.send_message(embed=embed)
+
+@tree.command(name='credits', description='Displays the bot credits.')
+async def credits(interaction: discord.Interaction):
+    embed = discord.Embed(title='Credits', description='This bot was created by [SyncWide Solutions](<https://github.com/SyncWide-Solutions>)\nLead Developer: [LolgamerHDDE](<https://github.com/LolgamerHDDE>)', color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
 if __name__ == "__main__":
