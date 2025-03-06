@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+from datetime import timedelta
 
 load_dotenv()
 
@@ -12,10 +13,15 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 tree = bot.tree
 
+@tasks.loop(seconds=1)
+async def update_presence():
+    await bot.change_presence(activity=discord.Game(name=f'Currently on {len(bot.guilds)} servers!'))
+
 @bot.event
 async def on_ready():
     print(f'{bot.user.name} has connected to Discord!')
     print(f'The bot is currently in {len(bot.guilds)} guilds.')
+    update_presence.start()
     await tree.sync()
 
 # TEST COMMANDS
@@ -70,21 +76,41 @@ async def unban(interaction: discord.Interaction, member: discord.Member):
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
-@tree.command(name='timeout', description='Timeouts a user on this server.')
+@tree.command(name='timeout', description='Timeouts a user on this server. Use format: 1d, 1w, 1m, 1y, 1h, 1min, 1sec')
 @commands.has_permissions(moderate_members=True)
-async def timeout(interaction: discord.Integration, member: discord.Member, until: int):
+async def timeout(interaction: discord.Interaction, member: discord.Member, duration: str, reason: str = 'No reason provided.'):
+    time_units = {
+        'sec': 1,
+        'min': 60,
+        'h': 3600,
+        'd': 86400,
+        'w': 604800,
+        'm': 2592000,
+        'y': 31536000
+    }
+    
+    amount = int(''.join(filter(str.isdigit, duration)))
+    unit = ''.join(filter(str.isalpha, duration.lower()))
+    
+    if unit not in time_units:
+        await interaction.response.send_message("Invalid time unit! Use: sec, min, h, d, w, m, y")
+        return
+        
+    seconds = amount * time_units[unit]
+    timeout_until = discord.utils.utcnow() + timedelta(seconds=seconds)
+    
     try:
         dm = await member.create_dm()
-        dm_embed = discord.Embed(title=f'You have been banned from {interaction.guild.name}.', 
-                               description=f'Reason: {reason}\nModerator: {interaction.user.name}', 
+        dm_embed = discord.Embed(title=f'You have been timeouted from {interaction.guild.name}.', 
+                               description=f'Reason: {reason}\nModerator: {interaction.user.name}\nDuration: {duration}', 
                                color=discord.Color.red())
         await dm.send(embed=dm_embed)
     except discord.Forbidden:
-        pass  # User has DMs disabled or has blocked the bot
+        pass
     
-    await member.timeout(until: until, reason: reason)
-    embed = discord.Embed(title=f'✅ {member.name} has been banned.', 
-                         description=f'Reason: {reason}', 
+    await member.timeout(timeout_until, reason=reason)  # Changed to positional argument
+    embed = discord.Embed(title=f'✅ {member.name} has been timeouted.', 
+                         description=f'Reason: {reason}\nDuration: {duration}', 
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
