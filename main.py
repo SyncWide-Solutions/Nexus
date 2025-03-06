@@ -70,6 +70,24 @@ async def unban(interaction: discord.Interaction, member: discord.Member):
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
+@tree.command(name='timeout', description='Timeouts a user on this server.')
+@commands.has_permissions(moderate_members=True)
+async def timeout(interaction: discord.Integration, member: discord.Member, until: int):
+    try:
+        dm = await member.create_dm()
+        dm_embed = discord.Embed(title=f'You have been banned from {interaction.guild.name}.', 
+                               description=f'Reason: {reason}\nModerator: {interaction.user.name}', 
+                               color=discord.Color.red())
+        await dm.send(embed=dm_embed)
+    except discord.Forbidden:
+        pass  # User has DMs disabled or has blocked the bot
+    
+    await member.timeout(until: until, reason: reason)
+    embed = discord.Embed(title=f'✅ {member.name} has been banned.', 
+                         description=f'Reason: {reason}', 
+                         color=discord.Color.green())
+    await interaction.response.send_message(embed=embed)
+
 # ADVERTISING COMMANDS
 
 @tree.command(name='invite', description='Generates an invite link for the bot.')
