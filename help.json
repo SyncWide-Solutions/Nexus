@@ -1,0 +1,45 @@
+{
+    "/help": {
+      "description": "Returns this prompt."
+    },
+    "/ping": {
+      "description": "Checks if the bot is online."
+    },
+    "/kick": {
+      "description": "Kicks a user from the server.",
+      "usage": "@user [reason]"
+    },
+    "/ban": {
+      "description": "Bans a user from the server.",
+      "usage": "@user [reason]"
+    },
+    "/unban": {
+      "description": "Unbans a user from the server.",
+      "usage": "@user"
+    },
+    "/timeout": {
+      "description": "Timeouts a user from the server.",
+      "usage": "@user [duration] [reason]"
+    },
+    "/check": {
+      "description": "Checks if a user has Nexus Premium."
+    },
+    "/radio": {
+      "description": "Plays a radio station. (Premium only)",
+      "usage": "[station]"
+    },
+    "/disconnect": {
+      "description": "Disconnects the bot from the Voice Channel. (Premium only)"
+    },
+    "/ai": {
+      "description": "Generates a response using AI. (Premium only)",
+      "usage": "[prompt]"
+    },
+    "/credits": {
+      "description": "Shows the credits of the bot."
+    },
+    "/invite": {
+      "description": "Sends the invite link of the bot."
+    }
+  }
+  
