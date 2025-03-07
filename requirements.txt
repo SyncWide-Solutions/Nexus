@@ -1,0 +1,7 @@
+ffmpeg
+discord
+PyNaCl
+asyncio
+requests
+python-dotenv
+openai
