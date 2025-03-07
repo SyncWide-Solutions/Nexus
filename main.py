@@ -17,17 +17,23 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 tree = bot.tree
 
+# UPDATE PRESENCE
+
 @tasks.loop(seconds=1)
 async def update_presence():
     await bot.change_presence(activity=discord.Game(name=f"Currently on {len(bot.guilds)} Servers!"))
+
+# BOT STARTUP
 
 @bot.event
 async def on_ready():
     print(f'{bot.user.name} has connected to Discord!')
     print(f'The bot is currently in {len(bot.guilds)} guilds.')
+    await update_presence.start()
     await tree.sync()
 
-# Add this event handler after the other commands
+# WORD FILTERING
+
 @bot.event
 async def on_message(message):
     # Skip if message is from bot
@@ -54,11 +60,15 @@ async def on_message(message):
 
 # TEST COMMANDS
 
+# PING COMMAND
+
 @tree.command(name='ping', description='Checks if the bot is alive.')
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message('Pong!')
 
 # MODERATION COMMANDS
+
+# KICK COMMAND
 
 @tree.command(name='kick', description='Kicks a user from the server.')
 @commands.has_permissions(kick_members=True)
@@ -78,6 +88,8 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
+# BAN COMMAND
+
 @tree.command(name='ban', description='Bans a user from the server.')
 @commands.has_permissions(ban_members=True)
 async def ban(interaction: discord.Interaction, member: discord.Member, reason: str = 'No reason provided.'):
@@ -96,6 +108,8 @@ async def ban(interaction: discord.Interaction, member: discord.Member, reason: 
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
+# UNBAN COMMAND
+
 @tree.command(name='unban', description='Unbans a user from the server.')
 @commands.has_permissions(ban_members=True)
 async def unban(interaction: discord.Interaction, member: discord.Member):
@@ -103,6 +117,8 @@ async def unban(interaction: discord.Interaction, member: discord.Member):
     embed = discord.Embed(title=f'✅ {member.name} has been unbanned.', 
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
+
+# TIMEOUT COMMAND
 
 @tree.command(name='timeout', description='Timeouts a user on this server. Use format: 1d, 1w, 1m, 1y, 1h, 1min, 1sec')
 @commands.has_permissions(moderate_members=True)
@@ -164,12 +180,16 @@ async def timeout(interaction: discord.Interaction, member: discord.Member, dura
 
 # ADVERTISING COMMANDS
 
+# INVITE COMMAND
+
 @tree.command(name='invite', description='Generates an invite link for the bot.')
 async def invite(interaction: discord.Interaction):
     invite_link = discord.utils.oauth_url(bot.user.id, permissions=discord.Permissions(administrator=True))
     embed = discord.Embed(title='Invite Link', description=f"[Click Here!](<{invite_link}>)", color=discord.Color.green())
 
     await interaction.response.send_message(embed=embed)
+
+# CREDITS COMMAND
 
 @tree.command(name='credits', description='Displays the bot credits.')
 async def credits(interaction: discord.Interaction):
