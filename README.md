@@ -20,8 +20,8 @@ Ensure you have the following installed:
 ### Setup
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/Nexus-Bot.git
-   cd Nexus-Bot
+   git clone https://github.com/SyncWide-Solutions/Nexus.git
+   cd Nexus
    ```
 2. Install dependencies:
    ```bash
@@ -30,6 +30,7 @@ Ensure you have the following installed:
 3. Create a `.env` file in the root directory and add your Discord bot token:
    ```
    DISCORD_BOT_TOKEN=your_token_here
+   OPENAI_API_KEY=your_api_key_here
    ```
 4. Run the bot:
    ```bash
@@ -51,6 +52,14 @@ Ensure you have the following installed:
 | `/ban @user [reason]` | Bans a user from the server |
 | `/unban @user` | Unbans a previously banned user |
 | `/timeout @user [duration] [reason]` | Temporarily mutes a user |
+
+### Premium Commands
+| Command  | Description |
+|----------|-------------|
+| `/check` | Check your premium status |
+| `/ai [prompt]` | Give a prompt to the AI |
+| `/radio [station]` | Play a radio station |
+| `/disconnect` | Disconnect from the Voice Channel |
 
 ## Configuration
 Nexus includes a `banned_words.json` file where you can define words to be automatically removed from messages.
