@@ -44,6 +44,7 @@ Ensure you have the following installed:
 | `/ping` | Checks if the bot is online |
 | `/invite` | Generates an invite link for the bot |
 | `/credits` | Shows the bot developer information |
+| `/help` | Displays a list of available commands |
 
 ### Moderation Commands
 | Command  | Description |
