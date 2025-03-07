@@ -4,13 +4,20 @@ import discord
 from discord.ext import commands, tasks
 from datetime import timedelta
 import json
+import openai
+import asyncio
 
 load_dotenv()
+
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 with open('banned_words.json', 'r') as f:
     banned_words = json.load(f)['banned_words']
+
+with open('help.json', 'r') as f:
+    help_commands = json.load(f)
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -29,8 +36,8 @@ async def update_presence():
 async def on_ready():
     print(f'{bot.user.name} has connected to Discord!')
     print(f'The bot is currently in {len(bot.guilds)} guilds.')
-    await update_presence.start()
     await tree.sync()
+    await update_presence.start()
 
 # WORD FILTERING
 
@@ -65,6 +72,23 @@ async def on_message(message):
 @tree.command(name='ping', description='Checks if the bot is alive.')
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message('Pong!')
+
+# GENERAL COMMANDS
+
+# HELP COMMAND
+
+@tree.command(name='help', description='Displays a list of available commands and descriptions.')
+async def help(interaction: discord.Interaction):
+    help_embed = discord.Embed(title="Bot Commands", color=discord.Color.blue())
+
+    # Loop through the help_commands dictionary and add each command to the embed
+    for command, details in help_commands.items():
+        description = details["description"]
+        usage = details.get("usage", None)
+        field_value = f"{description}\n**Usage:** {usage}" if usage else description
+        help_embed.add_field(name=command, value=field_value, inline=False)
+
+    await interaction.response.send_message(embed=help_embed)
 
 # MODERATION COMMANDS
 
@@ -177,6 +201,144 @@ async def timeout(interaction: discord.Interaction, member: discord.Member, dura
         color=discord.Color.green()
     )
     await interaction.response.send_message(embed=embed)
+
+# PREMIUM COMMANDS
+
+# CHECK FOR ACTIVE SUBSCRIPTION
+
+@tree.command(name='check', description='Checks for an active subscription.')
+async def check_subscription(interaction: discord.Interaction):
+    application_id = bot.application_id  # Get the bot's application ID
+    user_id = interaction.user.id
+
+    # Manually fetch entitlements using the bot's HTTP client
+    data = await bot.http.get_entitlements(application_id)
+
+    if not data:
+        not_data_embed = discord.Embed(title='Error', description='❌ No entitlements found.', color=discord.Color.red())
+        await interaction.response.send_message(embed=not_data_embed)
+        return
+
+    # Check if user has an active entitlement
+    for entitlement in data:
+        if entitlement["user_id"] == str(user_id) and entitlement["sku_id"] == "1347585991975637132":
+            active_embed = discord.Embed(title='Success', description='✅ You have an active subscription!', color=discord.Color.green())
+            await interaction.response.send_message(embed=active_embed)
+            return
+
+    not_active_embed = discord.Embed(title='Error', description='❌ No entitlements found.', color=discord.Color.red())
+    await interaction.response.send_message(embed=not_active_embed)
+
+# RADIO COMMAND
+
+# Disconnects after a few seconds (could be ssl error)
+
+@tree.command(name='radio', description='Plays a radio station.')
+async def radio(interaction: discord.Interaction, station: str = 'https://radio.syncwi.de:8443/stream.aac'):
+    application_id = bot.application_id  # Get the bot's application ID
+    user_id = interaction.user.id
+
+    # Manually fetch entitlements using the bot's HTTP client
+    data = await bot.http.get_entitlements(application_id)
+
+    if not data:
+        not_data_embed = discord.Embed(title='Error', description='❌ No entitlements found.', color=discord.Color.red())
+        await interaction.response.send_message(embed=not_data_embed)
+        return
+
+    # Check if user has an active entitlement
+    has_subscription = any(entitlement["user_id"] == str(user_id) and entitlement["sku_id"] == "1347585991975637132" for entitlement in data)
+
+    if not has_subscription:
+        error_embed = discord.Embed(title='Error', description='❌ You do not have an active subscription.', color=discord.Color.red())
+        await interaction.response.send_message(embed=error_embed)
+        return
+
+    # Get the user's voice channel
+    voice_channel = interaction.user.voice.channel if interaction.user.voice else None
+    if not voice_channel:
+        no_channel_embed = discord.Embed(title='Error', description='❌ You need to join a voice channel first.', color=discord.Color.red())
+        await interaction.response.send_message(embed=no_channel_embed)
+        return
+
+    # Join the voice channel
+    vc = await voice_channel.connect()
+
+    # Start playing the radio stream using FFmpeg
+    try:
+        vc.play(
+            discord.FFmpegPCMAudio(station),  # The radio stream URL
+            after=lambda e: print(f'Error occurred: {e}')  # Handle errors
+        )
+        
+        active_embed = discord.Embed(title='Success', description=f'✅ Playing {station} in {voice_channel.name}.', color=discord.Color.green())
+        await interaction.response.send_message(embed=active_embed)
+        
+        # Wait until the audio finishes playing or until the user disconnects
+        while vc.is_playing():
+            await asyncio.sleep(1)
+
+        # Disconnect the bot after the stream ends
+        await vc.disconnect()
+    except Exception as e:
+        error_embed = discord.Embed(title='Error', description=f'❌ Failed to play the radio station: {str(e)}', color=discord.Color.red())
+        await interaction.response.send_message(embed=error_embed)
+
+# DISCONNECT COMMAND
+
+@tree.command(name='disconnect', description='Disconnects the bot from the voice channel.')
+async def disconnect(interaction: discord.Interaction):
+    # Get the bot's voice channel
+    voice_channel = bot.voice_clients[0] if bot.voice_clients else None
+    # Disconnect the bot from the voice channel
+    try:
+        await voice_channel.disconnect()
+        disconnect_embed = discord.Embed(title='Success', description='✅ Disconnected from the voice channel.', color=discord.Color.green())
+        await interaction.response.send_message(embed=disconnect_embed)
+    except Exception as e:
+        error_embed = discord.Embed(title='Error', description=f'❌ Failed to disconnect: {str(e)}', color=discord.Color.red())
+        await interaction.response.send_message(embed=error_embed)
+
+# AI COMMAND
+
+@tree.command(name='ai', description='Generates an AI response.')
+async def ai(interaction: discord.Interaction, prompt: str):
+    application_id = bot.application_id  # Get the bot's application ID
+    user_id = interaction.user.id
+
+    # Manually fetch entitlements using the bot's HTTP client
+    data = await bot.http.get_entitlements(application_id)
+
+    if not data:
+        not_data_embed = discord.Embed(title='Error', description='❌ No entitlements found.', color=discord.Color.red())
+        await interaction.response.send_message(embed=not_data_embed)
+        return
+
+    # Check if user has an active entitlement
+    has_subscription = any(entitlement["user_id"] == str(user_id) and entitlement["sku_id"] == "1347585991975637132" for entitlement in data)
+
+    if not has_subscription:
+        error_embed = discord.Embed(title='Error', description='❌ You do not have an active subscription.', color=discord.Color.red())
+        await interaction.response.send_message(embed=error_embed)
+        return
+
+    # Generate AI response using OpenAI
+    await interaction.response.defer()  # Defer response to allow processing time
+    try:
+        client = openai.OpenAI()  # Create OpenAI client
+        ai_response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # or "gpt-4"
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        response_text = ai_response.choices[0].message.content
+
+        embed = discord.Embed(title="AI Response", description=response_text, color=discord.Color.blue())
+        await interaction.followup.send(embed=embed)
+
+    except Exception as e:
+        exception_embed = discord.Embed(title='Error', description=f"⚠️ Error generating response: {str(e)}", color=discord.Color.red())
+        await interaction.followup.send(embed=exception_embed)
 
 # ADVERTISING COMMANDS
 
