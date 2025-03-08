@@ -150,7 +150,6 @@ async def unban(interaction: discord.Interaction, member: discord.Member):
 # TIMEOUT COMMAND
 
 @tree.command(name='timeout', description='Timeouts a user on this server. Use format: 1d, 1w, 1m, 1y, 1h, 1min, 1sec')
-@tree.command(name='timeout', description='Timeouts a user on this server. Use format: 1d, 1w, 1m, 1y, 1h, 1min, 1sec')
 @commands.has_permissions(moderate_members=True)
 async def timeout(interaction: discord.Interaction, member: discord.Member, duration: str, reason: str = 'No reason provided.'):
     # More precise time units mapping
