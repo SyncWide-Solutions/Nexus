@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands, tasks
-from datetime import timedelta
+from datetime import timedelta, datetime
 import json
 import openai
 import asyncio
@@ -236,6 +236,27 @@ async def nuke(interaction: discord.Interaction, message_count: int = None):
 
     embed = discord.Embed(title=f'✅ {count} Messages deleted.', color=discord.Color.green())
     await interaction.channel.send(embed=embed)
+
+# CREATE EMBED COMMAND
+
+@tree.command(name='embed', description='Creates a coustomizable Embed')
+async def create_embed(interaction: discord.Interaction, title: str = None, description: str = None, color: str = None, timestamp: bool = False):
+    if timestamp == True:
+        discord_ts = datetime.now()
+    else:
+        discord_ts = None
+
+    if color != None:
+        color = discord.Color(int(color.strip('#'), 16))
+    else:
+        color = None
+
+    embed = discord.Embed(title=title, description=description, timestamp=discord_ts, color=color)
+    try:
+        await interaction.response.send_message(embed=embed)
+    except discord.DiscordException as e:
+        error_embed = discord.Embed(title='❌ Error whilst sending Embed', description=f'Error description: {e}')
+        await interaction.response.send_message(embed=error_embed)
 
 # PREMIUM COMMANDS
 

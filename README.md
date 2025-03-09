@@ -45,7 +45,7 @@ Ensure you have the following installed:
 | `/invite` | Generates an invite link for the bot |
 | `/credits` | Shows the bot developer information |
 | `/help` | Displays a list of available commands |
-| `/nuke` | Deletes all channels and roles in the server |
+| `/legal` | Displays the Bots Legal Information |
 
 ### Moderation Commands
 | Command  | Description |
@@ -62,6 +62,12 @@ Ensure you have the following installed:
 | `/ai [prompt]` | Give a prompt to the AI |
 | `/radio [station]` | Play a radio station |
 | `/disconnect` | Disconnect from the Voice Channel |
+
+### Costumization Commands
+| Command  | Description |
+|----------|-------------|
+| `/nuke` | Deletes all channels and roles in the server |
+| `/embed` | Creates a costumizable Embed |
 
 ## Configuration
 Nexus includes a `banned_words.json` file where you can define words to be automatically removed from messages.
