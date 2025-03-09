@@ -6,6 +6,7 @@ from datetime import timedelta, datetime
 import json
 import openai
 import asyncio
+import random
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
@@ -432,6 +433,40 @@ async def ai(interaction: discord.Interaction, prompt: str):
         bot.logger.error(f'Error generating AI response on server {interaction.guild.name} by {interaction.user.name}: {str(e)}')
         await interaction.followup.send(embed=exception_embed)
 
+# ECONOMY COMMANDS
+
+# GAMBLE COMMAND
+
+@tree.command(name='gamble', description='Gamble virtual points (Free to play!)')
+async def gamble(interaction: discord.Interaction, bet_amount: int):
+    # Generate random multiplier between 0.0 and 2.0
+    multiplier = round(random.uniform(0, 2), 1)
+    
+    # Calculate winnings
+    winnings = int(bet_amount * multiplier)
+    
+    # Create result message
+    if multiplier > 1:
+        color = discord.Color.green()
+        bot.logger.info(f'{interaction.user} gambled {bet_amount} points with {multiplier}x multiplier and won in {interaction.guild.name}')
+        result = f"🎉 You won {winnings} points!"
+    elif multiplier == 1:
+        color = discord.Color.yellow() 
+        bot.logger.info(f'{interaction.user} gambled {bet_amount} points with {multiplier}x multiplier and broke even in {interaction.guild.name}')
+        result = "🟡 You broke even!"
+    else:
+        color = discord.Color.red()
+        bot.logger.info(f'{interaction.user} gambled {bet_amount} points with {multiplier}x multiplier and lost in {interaction.guild.name}')
+        result = f"💸 You lost {bet_amount - winnings} points!"
+
+    embed = discord.Embed(
+        title="🎲 Gambling Results", 
+        description=f"Bet Amount: {bet_amount}\nMultiplier: {multiplier}x\n{result}",
+        color=color
+    )
+    
+    await interaction.response.send_message(embed=embed)
+
 # ADVERTISING COMMANDS
 
 # INVITE COMMAND
@@ -447,7 +482,7 @@ async def invite(interaction: discord.Interaction):
 
 @tree.command(name='credits', description='Displays the bot credits.')
 async def credits(interaction: discord.Interaction):
-    embed = discord.Embed(title='Credits', description='This bot was created by [SyncWide Solutions](<https://github.com/SyncWide-Solutions>)\nLead Developer: [LolgamerHDDE](<https://github.com/LolgamerHDDE>)', color=discord.Color.green())
+    embed = discord.Embed(title='Credits', description='This bot was created by [SyncWide Solutions](<https://github.com/SyncWide-Solutions>)\n**Lead Developer:** [LolgamerHDDE](<https://github.com/LolgamerHDDE>)\n\n**Community Ideas:**\n**Ratte49:** /gamble Command', color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
 # LEGAL COMMAND
