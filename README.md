@@ -45,6 +45,7 @@ Ensure you have the following installed:
 | `/invite` | Generates an invite link for the bot |
 | `/credits` | Shows the bot developer information |
 | `/help` | Displays a list of available commands |
+| `/nuke` | Deletes all channels and roles in the server |
 
 ### Moderation Commands
 | Command  | Description |

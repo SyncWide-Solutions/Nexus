@@ -187,41 +187,20 @@ async def timeout(interaction: discord.Interaction, member: discord.Member, dura
         
     seconds = int(amount) * time_units[unit]
     timeout_until = discord.utils.utcnow() + timedelta(seconds=seconds)
-    
-async def timeout(interaction: discord.Interaction, member: discord.Member, duration: str, reason: str = 'No reason provided.'):
-    time_units = {
-        'sec': 1,
-        'min': 60,
-        'h': 3600,
-        'd': 86400,
-        'w': 604800,
-        'm': 2592000,
-        'y': 31536000
-    }
-    
-    amount = int(''.join(filter(str.isdigit, duration)))
-    unit = ''.join(filter(str.isalpha, duration.lower()))
-    
-    if unit not in time_units:
-        await interaction.response.send_message("Invalid time unit! Use: sec, min, h, d, w, m, y")
-        return
-        
-    seconds = amount * time_units[unit]
-    timeout_until = discord.utils.utcnow() + timedelta(seconds=seconds)
-    
+
     try:
         dm = await member.create_dm()
         dm_embed = discord.Embed(title=f'You have been timeouted from {interaction.guild.name}.', 
-                               description=f'Reason: {reason}\nModerator: {interaction.user.name}\nDuration: {duration}', 
-                               color=discord.Color.red())
+                            description=f'Reason: {reason}\nModerator: {interaction.user.name}\nDuration: {duration}', 
+                            color=discord.Color.red())
         dm_embed = discord.Embed(
             title=f'You have been timed out in {interaction.guild.name}',
             description=f'Duration: {duration}\nReason: {reason}\nModerator: {interaction.user.name}',
             color=discord.Color.red()
         )
         await dm.send(embed=dm_embed)
+    
     except discord.Forbidden:
-        pass
         pass
     
     await member.timeout(timeout_until, reason=reason)  # Changed to positional argument
@@ -235,6 +214,28 @@ async def timeout(interaction: discord.Interaction, member: discord.Member, dura
         color=discord.Color.green()
     )
     await interaction.response.send_message(embed=embed)
+
+# COSTUMIZATION COMMANDS
+
+# NUKE COMMAND
+
+@tree.command(name='nuke', description='Deletes messages in a channel.')
+@commands.has_permissions(manage_messages=True, manage_channels=True, read_message_history=True)
+async def nuke(interaction: discord.Interaction, message_count: int = None):
+    if message_count is None:
+        count = None
+    else:
+        count = message_count + 1
+
+    await interaction.channel.purge(limit=count)
+
+    if message_count is None:
+        count = "All"
+    else:
+        count = str(message_count)
+
+    embed = discord.Embed(title=f'✅ {count} Messages deleted.', color=discord.Color.green())
+    await interaction.channel.send(embed=embed)
 
 # PREMIUM COMMANDS
 
@@ -265,10 +266,8 @@ async def check_subscription(interaction: discord.Interaction):
 
 # RADIO COMMAND
 
-# Disconnects after a few seconds (could be ssl error)
-
 @tree.command(name='radio', description='Plays a radio station.')
-async def radio(interaction: discord.Interaction, station: str = 'https://radio.syncwi.de:8443/stream.aac'):
+async def radio(interaction: discord.Interaction, station: str = 'http://radio.syncwi.de:8000/stream.aac'):
     application_id = bot.application_id  # Get the bot's application ID
     user_id = interaction.user.id
 
@@ -392,5 +391,14 @@ async def credits(interaction: discord.Interaction):
     embed = discord.Embed(title='Credits', description='This bot was created by [SyncWide Solutions](<https://github.com/SyncWide-Solutions>)\nLead Developer: [LolgamerHDDE](<https://github.com/LolgamerHDDE>)', color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
+# LEGAL COMMAND
+
+@tree.command(name='legal', description='Displays the bot legal information.')
+async def legal(interaction: discord.Interaction):
+    embed = discord.Embed(title='Nexus Legal Info', description=f'Here are the Legal Links for the bot {bot.user.name}:\n\nTerms Of Service (ToS): [Click Here](<https://syncwi.de/terms-of-service.html>)\nPrivacy Policy: [Click Here](<https://syncwi.de/privacy-policy.html>)\nContact: [Click Here](<https://syncwi.de/contact.html>)\n\n**Next Info only Relevant for Developers!**\n\nThe {bot.user.name} Bot is Licensed under the [MIT License](<https://opensource.org/license/mit>) which you can view by [Clicking Here](<https://github.com/SyncWide-Solutions/Nexus/blob/main/LICENSE>)', color=discord.Color.green())
+    await interaction.response.send_message(embed=embed)
+
 if __name__ == "__main__":
     bot.run(TOKEN)
+
+# This should be the 1000th line of code (goal).
