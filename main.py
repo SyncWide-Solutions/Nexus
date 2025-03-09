@@ -6,12 +6,41 @@ from datetime import timedelta, datetime
 import json
 import openai
 import asyncio
+import logging
+from logging.handlers import TimedRotatingFileHandler
 
 load_dotenv()
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
+
+# Configure logging
+def setup_logger():
+    logger = logging.getLogger('nexus')
+    logger.setLevel(logging.INFO)
+    
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Create daily rotating file handler
+    log_file = f'logs/{datetime.now().strftime("%d.%m.%Y")}.log'
+    file_handler = TimedRotatingFileHandler(
+        log_file,
+        when='midnight',
+        interval=1,
+        backupCount=30,
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    return logger
+
+logger = setup_logger()
 
 with open('banned_words.json', 'r') as f:
     banned_words = json.load(f)['banned_words']
@@ -21,6 +50,8 @@ with open('help.json', 'r') as f:
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents)
+
+bot.logger = logger
 
 tree = bot.tree
 
@@ -32,15 +63,14 @@ async def update_presence():
 
 # BOT STARTUP
 
-@tasks.loop(seconds=1)
+@tasks.loop(seconds=60)
 async def update_presence():
     await bot.change_presence(activity=discord.Game(name=f'Currently on {len(bot.guilds)} servers!'))
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} has connected to Discord!')
-    print(f'The bot is currently in {len(bot.guilds)} guilds.')
-    update_presence.start()
+    bot.logger.info(f'{bot.user.name} has connected to Discord!')
+    bot.logger.info(f'The bot is in {len(bot.guilds)} servers.')
     await tree.sync()
     await update_presence.start()
 
@@ -48,17 +78,14 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    # Skip if message is from bot
     if message.author == bot.user:
         return
 
-    # Check message content against banned words
     msg_content = message.content.lower()
     for word in banned_words:
         if word.lower() in msg_content:
             await message.delete()
-            
-            # Optional: Notify user their message was deleted
+            bot.logger.warning(f'Deleted message from {message.author} containing banned word')
             embed = discord.Embed(
                 title="Message Deleted",
                 description=f"Your message contained a banned word.",
@@ -67,7 +94,6 @@ async def on_message(message):
             await message.channel.send(embed=embed, delete_after=5)
             return
 
-    # Important: Process commands after message check
     await bot.process_commands(message)
 
 # TEST COMMANDS
@@ -112,6 +138,7 @@ async def kick(interaction: discord.Interaction, member: discord.Member, reason:
         pass  # User has DMs disabled or has blocked the bot
     
     await member.kick(reason=reason)
+    bot.logger.info(f'{interaction.user} kicked {member} from server {interaction.guild.name} for reason: {reason}')
     embed = discord.Embed(title=f'✅ {member.name} has been kicked.', 
                          description=f'Reason: {reason}', 
                          color=discord.Color.green())
@@ -132,6 +159,7 @@ async def ban(interaction: discord.Interaction, member: discord.Member, reason: 
         pass  # User has DMs disabled or has blocked the bot
     
     await member.ban(reason=reason)
+    bot.logger.info(f'{interaction.user} banned {member} from server {interaction.guild.name} for reason: {reason}')
     embed = discord.Embed(title=f'✅ {member.name} has been banned.', 
                          description=f'Reason: {reason}', 
                          color=discord.Color.green())
@@ -143,6 +171,7 @@ async def ban(interaction: discord.Interaction, member: discord.Member, reason: 
 @commands.has_permissions(ban_members=True)
 async def unban(interaction: discord.Interaction, member: discord.Member):
     await member.unban()
+    bot.logger.info(f'{interaction.user} unbanned {member} from server {interaction.guild.name}')
     embed = discord.Embed(title=f'✅ {member.name} has been unbanned.', 
                          color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
@@ -204,6 +233,7 @@ async def timeout(interaction: discord.Interaction, member: discord.Member, dura
         pass
     
     await member.timeout(timeout_until, reason=reason)  # Changed to positional argument
+    bot.logger.info(f'{interaction.user} timed out {member} in server {interaction.guild.name} for reason: {reason}')
     embed = discord.Embed(title=f'✅ {member.name} has been timeouted.', 
                          description=f'Reason: {reason}\nDuration: {duration}', 
                          color=discord.Color.green())
@@ -235,6 +265,7 @@ async def nuke(interaction: discord.Interaction, message_count: int = None):
         count = str(message_count)
 
     embed = discord.Embed(title=f'✅ {count} Messages deleted.', color=discord.Color.green())
+    bot.logger.info(f'{interaction.user} nuked channel {interaction.channel.name} in server {interaction.guild.name}')
     await interaction.channel.send(embed=embed)
 
 # CREATE EMBED COMMAND
@@ -312,6 +343,7 @@ async def radio(interaction: discord.Interaction, station: str = 'http://radio.s
     voice_channel = interaction.user.voice.channel if interaction.user.voice else None
     if not voice_channel:
         no_channel_embed = discord.Embed(title='Error', description='❌ You need to join a voice channel first.', color=discord.Color.red())
+        bot.logger.error(f'{interaction.user} tried to play radio station {station} in {voice_channel.name} on server {interaction.guild.name} but was not in a voice channel')
         await interaction.response.send_message(embed=no_channel_embed)
         return
 
@@ -325,6 +357,7 @@ async def radio(interaction: discord.Interaction, station: str = 'http://radio.s
             after=lambda e: print(f'Error occurred: {e}')  # Handle errors
         )
         
+        bot.logger.info(f'{interaction.user} played radio station {station} in {voice_channel.name} on server {interaction.guild.name}')
         active_embed = discord.Embed(title='Success', description=f'✅ Playing {station} in {voice_channel.name}.', color=discord.Color.green())
         await interaction.response.send_message(embed=active_embed)
         
@@ -336,6 +369,7 @@ async def radio(interaction: discord.Interaction, station: str = 'http://radio.s
         await vc.disconnect()
     except Exception as e:
         error_embed = discord.Embed(title='Error', description=f'❌ Failed to play the radio station: {str(e)}', color=discord.Color.red())
+        bot.logger.error(f'Failed to play radio station {station} in {voice_channel.name} on server {interaction.guild.name}: {str(e)}')
         await interaction.response.send_message(embed=error_embed)
 
 # DISCONNECT COMMAND
@@ -347,10 +381,12 @@ async def disconnect(interaction: discord.Interaction):
     # Disconnect the bot from the voice channel
     try:
         await voice_channel.disconnect()
+        bot.logger.info(f'{interaction.user} disconnected from {voice_channel.name} in {interaction.guild.name}')
         disconnect_embed = discord.Embed(title='Success', description='✅ Disconnected from the voice channel.', color=discord.Color.green())
         await interaction.response.send_message(embed=disconnect_embed)
     except Exception as e:
         error_embed = discord.Embed(title='Error', description=f'❌ Failed to disconnect: {str(e)}', color=discord.Color.red())
+        bot.logger.error(f'Failed to disconnect from Voice Channel {voice_channel.name} in {interaction.guild.name}: {str(e)}')
         await interaction.response.send_message(embed=error_embed)
 
 # AI COMMAND
@@ -387,11 +423,13 @@ async def ai(interaction: discord.Interaction, prompt: str):
 
         response_text = ai_response.choices[0].message.content
 
+        bot.logger.info(f'{interaction.user} generated AI response: {response_text} on server {interaction.guild.name}')
         embed = discord.Embed(title="AI Response", description=response_text, color=discord.Color.blue())
         await interaction.followup.send(embed=embed)
 
     except Exception as e:
         exception_embed = discord.Embed(title='Error', description=f"⚠️ Error generating response: {str(e)}", color=discord.Color.red())
+        bot.logger.error(f'Error generating AI response on server {interaction.guild.name} by {interaction.user.name}: {str(e)}')
         await interaction.followup.send(embed=exception_embed)
 
 # ADVERTISING COMMANDS

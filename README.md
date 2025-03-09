@@ -9,13 +9,13 @@ Nexus is a powerful and feature-rich Discord bot designed to enhance server mode
 - **Ping Command:** Checks the bot's responsiveness.
 - **Invite Generator:** Generates an invite link for adding the bot to other servers.
 - **Credits Command:** Displays information about the developers of Nexus.
+- **Logging**: Logs all actions performed by Nexus (bans, timeouts, etc.).
 
 ## Installation
 ### Prerequisites
 Ensure you have the following installed:
 - [Python 3.8+](https://www.python.org/downloads/)
-- [discord.py library](https://pypi.org/project/discord.py/)
-- [dotenv library](https://pypi.org/project/python-dotenv/)
+- [Git](https://git-scm.com/downloads)
 
 ### Setup
 1. Clone this repository:
@@ -34,7 +34,7 @@ Ensure you have the following installed:
    ```
 4. Run the bot:
    ```bash
-   python bot.py
+   python main.py
    ```
 
 ## Commands

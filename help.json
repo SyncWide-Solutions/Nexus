@@ -40,6 +40,9 @@
     },
     "/invite": {
       "description": "Sends the invite link of the bot."
+    },
+    "/legal": {
+      "description": "Shows the legal information of the bot."
     }
   }
   
