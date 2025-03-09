@@ -435,9 +435,40 @@ async def ai(interaction: discord.Interaction, prompt: str):
 
 # ECONOMY COMMANDS
 
+# DAYLY REWARDS COMMAND
+
+# Idea:
+# Make a command that give you a daily reward of 100 points
+# If the user has Premium then give them 500 points
+# If the user has a Streak then give them these points:
+# 7 Days: 200 Points (750 Points if Premium)
+# 14 Days: 500 Points (1250 Points if Premium)
+# 30 Days: 1000 Points (2500 Points if Premium)
+# 90 Days: 2000 Points (5000 Points if Premium)
+# 180 Days: 5000 Points (10000 Points if Premium)
+# 365 Days: 10000 Points (25000 Points if Premium)
+# The Points are stored in a SQL database sorted like this:
+# UserID | Points | Streak | LastCollected
+
+# Transfer command
+
+# Idea:
+# Make a command that allows you to transfer points to another user
+# The user can only transfer points to users that are in the same server or outside the server if they have the user ID
+# The Transaction will have a fee of (random between 5 and 15 that changes everyday at 12PM UTC+1 Berlin/Paris)% of the amount transferred
+# The user is notified about the fee
+# The fee goes to the UserId: 1011702976555004007
+# The user can only transfer points that they have
+# The user is notified about the transaction in a private message
+# The message is structured like this:
+# You have transferred {amount} points to {user} with a fee of {fee} points
+# The recipient is notified about the transaction in a private message
+# The message is structured like this:
+# You have received {amount} points from {user}
+
 # GAMBLE COMMAND
 
-@tree.command(name='gamble', description='Gamble virtual points (Free to play!)')
+@tree.command(name='gamble', description='Gamble virtual points (Free to play for now!)')
 async def gamble(interaction: discord.Interaction, bet_amount: int):
     # Generate random multiplier between 0.0 and 2.0
     multiplier = round(random.uniform(0, 2), 1)
