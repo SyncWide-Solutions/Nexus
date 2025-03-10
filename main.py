@@ -8,7 +8,24 @@ import openai
 import asyncio
 import random
 import logging
+import mysql.connector
+from mysql.connector import Error
 from logging.handlers import TimedRotatingFileHandler
+
+# Add these to your existing environment variables
+DB_HOST = "45.84.196.164"
+DB_USER = "syncwide"
+DB_PASSWORD = "1Subfuerlinus!"
+DB_NAME = "main"
+
+def get_db_connection():
+    return mysql.connector.connect(
+        host=DB_HOST,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        database=DB_NAME
+    )
+
 
 load_dotenv()
 
@@ -216,7 +233,7 @@ async def timeout(interaction: discord.Interaction, member: discord.Member, dura
         return
         
     seconds = int(amount) * time_units[unit]
-    timeout_until = discord.utils.utcnow() + timedelta(seconds=seconds)
+    timeout_until = discord.utils.now(datetime.timezone.utc) + timedelta(seconds=seconds)
 
     try:
         dm = await member.create_dm()
@@ -450,7 +467,79 @@ async def ai(interaction: discord.Interaction, prompt: str):
 # The Points are stored in a SQL database sorted like this:
 # UserID | Points | Streak | LastCollected
 
-# Transfer command
+@tree.command(name='daily', description='Collect your daily reward points')
+async def daily(interaction: discord.Interaction):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        now = datetime.utcnow()
+        base_points = 100
+        premium_multiplier = 5
+        
+        # Check premium status
+        application_id = bot.application_id
+        data = await bot.http.get_entitlements(application_id)
+        is_premium = any(e["user_id"] == str(interaction.user.id) and e["sku_id"] == "1347585991975637132" for e in data)
+        
+        # Check existing user
+        cursor.execute('SELECT * FROM user_points WHERE user_id = %s', (interaction.user.id,))
+        user_data = cursor.fetchone()
+        
+        if not user_data:
+            points_earned = base_points * (premium_multiplier if is_premium else 1)
+            cursor.execute(
+                'INSERT INTO user_points (user_id, points, streak, last_collected) VALUES (%s, %s, %s, %s)',
+                (interaction.user.id, points_earned, 1, now)
+            )
+            streak = 1
+        else:
+            current_points = user_data[1]
+            streak = user_data[2]
+            last_collected = user_data[3]
+            
+            if (now - last_collected).days > 1:
+                streak = 1
+            else:
+                streak += 1
+                
+            # Calculate streak bonus
+            bonus = {
+                365: 10000,
+                180: 5000,
+                90: 2000,
+                30: 1000,
+                14: 500,
+                7: 200
+            }.get(next((k for k in [365, 180, 90, 30, 14, 7] if streak >= k), 0), 0)
+            
+            points_earned = (base_points + bonus) * (premium_multiplier if is_premium else 1)
+            
+            cursor.execute(
+                'UPDATE user_points SET points = points + %s, streak = %s, last_collected = %s WHERE user_id = %s',
+                (points_earned, streak, now, interaction.user.id)
+            )
+        
+        conn.commit()
+        
+        embed = discord.Embed(
+            title="Daily Reward Collected!",
+            description=f"You earned {points_earned} points!\nCurrent streak: {streak} days",
+            color=discord.Color.green()
+        )
+        await interaction.response.send_message(embed=embed)
+        
+    except Error as e:
+        bot.logger.error(f"Database error: {e}")
+        await interaction.response.send_message("Error processing daily reward. Please try again later.")
+        
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+# TRANSFER COMMAND
 
 # Idea:
 # Make a command that allows you to transfer points to another user
@@ -465,6 +554,89 @@ async def ai(interaction: discord.Interaction, prompt: str):
 # The recipient is notified about the transaction in a private message
 # The message is structured like this:
 # You have received {amount} points from {user}
+
+@tree.command(name='transfer', description='Transfer points to another user')
+async def transfer(interaction: discord.Interaction, recipient: discord.User, amount: int):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Calculate fee (changes daily at 12PM UTC+1)
+        now = datetime.now()
+        seed = int(now.replace(hour=12, minute=0, second=0, microsecond=0).timestamp())
+        random.seed(seed)
+        fee_percentage = random.randint(5, 15)
+        fee_amount = int(amount * (fee_percentage / 100))
+        total_cost = amount + fee_amount
+
+        # Get sender's points
+        cursor.execute('SELECT points FROM user_points WHERE user_id = %s', (interaction.user.id,))
+        sender_data = cursor.fetchone()
+
+        if not sender_data or sender_data[0] < total_cost:
+            await interaction.response.send_message(f"You need {total_cost} points for this transfer (including {fee_percentage}% fee)!")
+            return
+
+        # Update sender's points (deduct amount + fee)
+        cursor.execute('UPDATE user_points SET points = points - %s WHERE user_id = %s', 
+                      (total_cost, interaction.user.id))
+
+        # Update or create recipient's points (gets full amount)
+        cursor.execute('SELECT points FROM user_points WHERE user_id = %s', (recipient.id,))
+        if cursor.fetchone():
+            cursor.execute('UPDATE user_points SET points = points + %s WHERE user_id = %s',
+                         (amount, recipient.id))
+        else:
+            cursor.execute('INSERT INTO user_points (user_id, points, streak, last_collected) VALUES (%s, %s, %s, %s)',
+                         (recipient.id, amount, 0, now))
+
+        # Add fee to specified user
+        fee_user_id = 1011702976555004007
+        cursor.execute('SELECT points FROM user_points WHERE user_id = %s', (fee_user_id,))
+        if cursor.fetchone():
+            cursor.execute('UPDATE user_points SET points = points + %s WHERE user_id = %s',
+                         (fee_amount, fee_user_id))
+        else:
+            cursor.execute('INSERT INTO user_points (user_id, points, streak, last_collected) VALUES (%s, %s, %s, %s)',
+                         (fee_user_id, fee_amount, 0, now))
+
+        conn.commit()
+
+        # Send confirmation messages
+        sender_embed = discord.Embed(
+            title="Transfer Successful",
+            description=f"You transferred {amount} points to {recipient.name}\nFee paid: {fee_amount} points ({fee_percentage}%)\nTotal cost: {total_cost} points",
+            color=discord.Color.green()
+        )
+        await interaction.response.send_message(embed=sender_embed)
+
+        # DM to recipient
+        recipient_embed = discord.Embed(
+            title="Points Received",
+            description=f"You have received {amount} points from {interaction.user.name}",
+            color=discord.Color.green()
+        )
+        try:
+            await recipient.send(embed=recipient_embed)
+        except discord.Forbidden:
+            pass
+
+        bot.logger.info(f'{interaction.user.name} transferred {amount} points to {recipient.name} with {fee_amount} points fee')
+
+    except Error as e:
+        bot.logger.error(f"Database error in transfer: {e}")
+        error_embed = discord.Embed(
+            title="Transfer Failed",
+            description="An error occurred while processing the transfer.",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=error_embed)
+
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 # GAMBLE COMMAND
 
