@@ -454,19 +454,6 @@ async def ai(interaction: discord.Interaction, prompt: str):
 
 # DAYLY REWARDS COMMAND
 
-# Idea:
-# Make a command that give you a daily reward of 100 points
-# If the user has Premium then give them 500 points
-# If the user has a Streak then give them these points:
-# 7 Days: 200 Points (750 Points if Premium)
-# 14 Days: 500 Points (1250 Points if Premium)
-# 30 Days: 1000 Points (2500 Points if Premium)
-# 90 Days: 2000 Points (5000 Points if Premium)
-# 180 Days: 5000 Points (10000 Points if Premium)
-# 365 Days: 10000 Points (25000 Points if Premium)
-# The Points are stored in a SQL database sorted like this:
-# UserID | Points | Streak | LastCollected
-
 @tree.command(name='daily', description='Collect your daily reward points')
 async def daily(interaction: discord.Interaction):
     conn = None
@@ -474,7 +461,7 @@ async def daily(interaction: discord.Interaction):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        now = datetime.utcnow()
+        now = datetime.now()
         base_points = 100
         premium_multiplier = 5
         
@@ -499,10 +486,19 @@ async def daily(interaction: discord.Interaction):
             streak = user_data[2]
             last_collected = user_data[3]
             
-            if (now - last_collected).days > 1:
-                streak = 1
-            else:
-                streak += 1
+            time_since_last = now - last_collected
+            if time_since_last.total_seconds() < 86400:  # 86400 seconds = 24 hours
+                time_remaining = timedelta(days=1) - time_since_last
+                hours = int(time_remaining.total_seconds() // 3600)
+                minutes = int((time_remaining.total_seconds() % 3600) // 60)
+                
+                embed = discord.Embed(
+                    title="Daily Reward Not Ready",
+                    description=f"You need to wait {hours}h {minutes}m before collecting again!",
+                    color=discord.Color.red()
+                )
+                await interaction.response.send_message(embed=embed)
+                return
                 
             # Calculate streak bonus
             bonus = {
@@ -539,21 +535,44 @@ async def daily(interaction: discord.Interaction):
             cursor.close()
             conn.close()
 
-# TRANSFER COMMAND
+# BALANCE COMMAND
 
-# Idea:
-# Make a command that allows you to transfer points to another user
-# The user can only transfer points to users that are in the same server or outside the server if they have the user ID
-# The Transaction will have a fee of (random between 5 and 15 that changes everyday at 12PM UTC+1 Berlin/Paris)% of the amount transferred
-# The user is notified about the fee
-# The fee goes to the UserId: 1011702976555004007
-# The user can only transfer points that they have
-# The user is notified about the transaction in a private message
-# The message is structured like this:
-# You have transferred {amount} points to {user} with a fee of {fee} points
-# The recipient is notified about the transaction in a private message
-# The message is structured like this:
-# You have received {amount} points from {user}
+@tree.command(name='balance', description='Check your current balance')
+async def balance(interaction: discord.Interaction):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT points FROM user_points WHERE user_id = %s', (interaction.user.id,))
+        result = cursor.fetchone()
+
+        if result:
+            points = result[0]
+            embed = discord.Embed(
+                title="Balance",
+                description=f"You have {points} points.",
+                color=discord.Color.green()
+            )
+            await interaction.response.send_message(embed=embed)
+        else:
+            embed = discord.Embed(
+                title="Balance",
+                description="You have no points yet.",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed)
+
+    except Error as e:
+        bot.logger.error(f"Database error: {e}")
+        await interaction.response.send_message("Error fetching balance. Please try again later.")
+
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
+
+# TRANSFER COMMAND
 
 @tree.command(name='transfer', description='Transfer points to another user')
 async def transfer(interaction: discord.Interaction, recipient: discord.User, amount: int):
@@ -640,35 +659,68 @@ async def transfer(interaction: discord.Interaction, recipient: discord.User, am
 
 # GAMBLE COMMAND
 
-@tree.command(name='gamble', description='Gamble virtual points (Free to play for now!)')
+@tree.command(name='gamble', description='Gamble your points')
 async def gamble(interaction: discord.Interaction, bet_amount: int):
-    # Generate random multiplier between 0.0 and 2.0
-    multiplier = round(random.uniform(0, 2), 1)
-    
-    # Calculate winnings
-    winnings = int(bet_amount * multiplier)
-    
-    # Create result message
-    if multiplier > 1:
-        color = discord.Color.green()
-        bot.logger.info(f'{interaction.user} gambled {bet_amount} points with {multiplier}x multiplier and won in {interaction.guild.name}')
-        result = f"🎉 You won {winnings} points!"
-    elif multiplier == 1:
-        color = discord.Color.yellow() 
-        bot.logger.info(f'{interaction.user} gambled {bet_amount} points with {multiplier}x multiplier and broke even in {interaction.guild.name}')
-        result = "🟡 You broke even!"
-    else:
-        color = discord.Color.red()
-        bot.logger.info(f'{interaction.user} gambled {bet_amount} points with {multiplier}x multiplier and lost in {interaction.guild.name}')
-        result = f"💸 You lost {bet_amount - winnings} points!"
-
-    embed = discord.Embed(
-        title="🎲 Gambling Results", 
-        description=f"Bet Amount: {bet_amount}\nMultiplier: {multiplier}x\n{result}",
-        color=color
-    )
-    
-    await interaction.response.send_message(embed=embed)
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check user's current balance
+        cursor.execute('SELECT points FROM user_points WHERE user_id = %s', (interaction.user.id,))
+        result = cursor.fetchone()
+        current_balance = result[0] if result else 0
+        
+        if bet_amount <= 0:
+            await interaction.response.send_message("Bet amount must be positive!")
+            return
+            
+        if bet_amount > current_balance:
+            await interaction.response.send_message(f"You don't have enough points! Your balance: {current_balance}")
+            return
+        
+        # Generate random multiplier between 0.0 and 2.0
+        multiplier = round(random.uniform(0, 2), 1)
+        winnings = int(bet_amount * multiplier)
+        
+        # Update points in database
+        new_balance = current_balance - bet_amount + winnings
+        if result:
+            cursor.execute('UPDATE user_points SET points = %s WHERE user_id = %s', 
+                         (new_balance, interaction.user.id))
+        else:
+            cursor.execute('INSERT INTO user_points (user_id, points, streak, last_collected) VALUES (%s, %s, %s, %s)',
+                         (interaction.user.id, new_balance, 0, datetime.utcnow()))
+        
+        # Create result message
+        if multiplier > 1:
+            color = discord.Color.green()
+            result = f"🎉 You won {winnings} points!"
+        elif multiplier == 1:
+            color = discord.Color.yellow()
+            result = "🟡 You broke even!"
+        else:
+            color = discord.Color.red()
+            result = f"💸 You lost {bet_amount - winnings} points!"
+            
+        embed = discord.Embed(
+            title="🎲 Gambling Results",
+            description=f"Bet Amount: {bet_amount}\nMultiplier: {multiplier}x\n{result}\nNew Balance: {new_balance}",
+            color=color
+        )
+        
+        conn.commit()
+        bot.logger.info(f'{interaction.user} gambled {bet_amount} points with {multiplier}x multiplier in {interaction.guild.name}')
+        await interaction.response.send_message(embed=embed)
+        
+    except Error as e:
+        bot.logger.error(f"Database error in gamble: {e}")
+        await interaction.response.send_message("Error processing your gamble. Please try again.")
+        
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 # ADVERTISING COMMANDS
 
