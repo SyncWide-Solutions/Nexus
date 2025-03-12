@@ -31,6 +31,7 @@ load_dotenv()
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+FILTER = os.getenv('FILTER')
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 # Create logs directory if it doesn't exist
@@ -96,23 +97,26 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    if message.author == bot.user:
-        return
-
-    msg_content = message.content.lower()
-    for word in banned_words:
-        if word.lower() in msg_content:
-            await message.delete()
-            bot.logger.warning(f'Deleted message from {message.author} containing banned word')
-            embed = discord.Embed(
-                title="Message Deleted",
-                description=f"Your message contained a banned word.",
-                color=discord.Color.red()
-            )
-            await message.channel.send(embed=embed, delete_after=5)
+    if FILTER is False:
+        pass
+    else:
+        if message.author == bot.user:
             return
 
-    await bot.process_commands(message)
+        msg_content = message.content.lower()
+        for word in banned_words:
+            if word.lower() in msg_content:
+                await message.delete()
+                bot.logger.warning(f'Deleted message from {message.author} containing banned word')
+                embed = discord.Embed(
+                    title="Message Deleted",
+                    description=f"Your message contained a banned word.",
+                    color=discord.Color.red()
+                )
+                await message.channel.send(embed=embed, delete_after=5)
+                return
+
+        await bot.process_commands(message)
 
 # TEST COMMANDS
 
@@ -721,6 +725,39 @@ async def gamble(interaction: discord.Interaction, bet_amount: int):
         if conn and conn.is_connected():
             cursor.close()
             conn.close()
+
+# WORK COMMAND
+
+@tree.command(name='work', description='Work for points')
+async def work(interaction: discord.Interaction):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if user has worked in the last 24 hours
+        cursor.execute('SELECT last_worked FROM user_points WHERE user_id = %s', (interaction.user.id,))
+        result = cursor.fetchone()
+
+        if result and datetime.utcnow() - result[0] < timedelta(hours=24):
+            await interaction.response.send_message("You've already worked today. Come back tomorrow!")
+            return
+        
+        # Generate random points between 10 and 50
+        points = random.randint(10, 50)
+
+        # Update user's points and last_worked time
+        cursor.execute('UPDATE user_points SET points = points + %s, last_worked = %s WHERE user_id = %s',
+                       (points, datetime.utcnow(), interaction.user.id))
+        
+        conn.commit()
+
+        bot.logger.info(f'{interaction.user} worked and earned {points} points in {interaction.guild.name}')
+        await interaction.response.send_message(f"You worked and earned {points} points!")
+
+    except Exception as e:
+        bot.logger.error(f"Database error in work: {e}")
+        await interaction.response.send_message("Error processing your work. Please try again.")
 
 # ADVERTISING COMMANDS
 

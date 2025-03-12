@@ -69,6 +69,14 @@ Ensure you have the following installed:
 | `/nuke` | Deletes all channels and roles in the server |
 | `/embed` | Creates a costumizable Embed |
 
+### Economic Commands
+| Command  | Description |
+|----------|-------------|
+| `/balance` | Check your balance |
+| `/transfer @user [amount]` | Transfer money to another user (with a fee) |
+| `/gamble [amount]` | Gamble money |
+| `/work` | Work for money |
+
 ## Configuration
 Nexus includes a `banned_words.json` file where you can define words to be automatically removed from messages.
 Modify `banned_words.json` to include additional words:
@@ -84,9 +92,11 @@ Contributions are welcome! Feel free to fork this repository and submit pull req
 ## License
 This project is licensed under the MIT License.
 
-## Contact
-- **Developer:** [LolgamerHDDE](https://github.com/LolgamerHDDE)
+## Credits
 - **Organization:** [SyncWide Solutions](https://github.com/SyncWide-Solutions)
+- **Lead-Developer:** [LolgamerHDDE](https://github.com/LolgamerHDDE)
+
+- **/gable Command:** @Ratte49
 
 ---
 Enjoy using Nexus! 🚀
