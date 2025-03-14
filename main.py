@@ -735,29 +735,46 @@ async def work(interaction: discord.Interaction):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Check if user has worked in the last 24 hours
+        # Check if user exists and their last work time
         cursor.execute('SELECT last_worked FROM user_points WHERE user_id = %s', (interaction.user.id,))
         result = cursor.fetchone()
 
-        if result and datetime.utcnow() - result[0] < timedelta(hours=24):
-            await interaction.response.send_message("You've already worked today. Come back tomorrow!")
-            return
+        now = datetime.now()
+        
+        # If user exists and has worked before
+        if result and result[0]:
+            time_since_last = now - result[0]
+            if time_since_last < timedelta(hours=24):
+                await interaction.response.send_message("You've already worked today. Come back tomorrow!")
+                return
         
         # Generate random points between 10 and 50
         points = random.randint(10, 50)
 
-        # Update user's points and last_worked time
-        cursor.execute('UPDATE user_points SET points = points + %s, last_worked = %s WHERE user_id = %s',
-                       (points, datetime.utcnow(), interaction.user.id))
-        
+        # Insert or update user's points and last_worked time
+        if result:
+            cursor.execute('UPDATE user_points SET points = points + %s, last_worked = %s WHERE user_id = %s',
+                         (points, now, interaction.user.id))
+        else:
+            cursor.execute('INSERT INTO user_points (user_id, points, streak, last_worked) VALUES (%s, %s, %s, %s)',
+                         (interaction.user.id, points, 0, now))
+
         conn.commit()
 
+        embed = discord.Embed(title="Work Complete!", 
+                            description=f"You worked and earned {points} points!", 
+                            color=discord.Color.green())
         bot.logger.info(f'{interaction.user} worked and earned {points} points in {interaction.guild.name}')
-        await interaction.response.send_message(f"You worked and earned {points} points!")
-
+        await interaction.response.send_message(embed=embed)
+        
     except Exception as e:
         bot.logger.error(f"Database error in work: {e}")
         await interaction.response.send_message("Error processing your work. Please try again.")
+    
+    finally:
+        if conn and conn.is_connected():
+            cursor.close()
+            conn.close()
 
 # ADVERTISING COMMANDS
 
