@@ -46,6 +46,7 @@ Ensure you have the following installed:
 | `/credits` | Shows the bot developer information |
 | `/help` | Displays a list of available commands |
 | `/legal` | Displays the Bots Legal Information |
+| `/version` | Shows the current version of the bot |
 
 ### Moderation Commands
 | Command  | Description |

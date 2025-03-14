@@ -143,6 +143,13 @@ async def help(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=help_embed)
 
+# VERSION COMMAND
+
+@tree.command(name='version', description='Displays the bot version.')
+async def version(interaction: discord.Interaction):
+    embed = discord.Embed(title="Bot Version", description="v0.9.0b", color=discord.Color.green())
+    await interaction.response.send_message(embed=embed)
+
 # MODERATION COMMANDS
 
 # KICK COMMAND
