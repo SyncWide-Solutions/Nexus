@@ -269,6 +269,34 @@ async def timeout(interaction: discord.Interaction, member: discord.Member, dura
 
 # COSTUMIZATION COMMANDS
 
+# SERVER INFO COMMAND
+
+@tree.command(name='serverinfo', description='Shows information about the server')
+async def serverinfo(interaction: discord.Interaction):
+    guild = interaction.guild
+    embed = discord.Embed(title=f"{guild.name} Info", color=discord.Color.blue())
+    embed.add_field(name="Created On", value=guild.created_at.strftime("%b %d %Y"), inline=True)
+    embed.add_field(name="Member Count", value=guild.member_count, inline=True)
+    embed.add_field(name="Channels", value=len(guild.channels), inline=True)
+    embed.set_thumbnail(url=guild.icon.url if guild.icon else None)
+    await interaction.response.send_message(embed=embed)
+
+# EIGHTBALL COMMAND
+
+@tree.command(name='8ball', description='Ask the magic 8ball a question')
+async def eightball(interaction: discord.Interaction, question: str):
+    responses = [
+        "It is certain.", "Without a doubt.", "Yes definitely.",
+        "Don't count on it.", "My sources say no.", "Very doubtful.",
+        "Signs point to yes.", "Reply hazy, try again.", "Ask again later."
+    ]
+    embed = discord.Embed(
+        title="🎱 Magic 8Ball",
+        description=f"**Q:** {question}\n**A:** {random.choice(responses)}",
+        color=discord.Color.purple()
+    )
+    await interaction.response.send_message(embed=embed)
+
 # NUKE COMMAND
 
 @tree.command(name='nuke', description='Deletes messages in a channel.')
@@ -389,6 +417,7 @@ async def radio(interaction: discord.Interaction, station: str = 'http://radio.s
 
         # Disconnect the bot after the stream ends
         await vc.disconnect()
+
     except Exception as e:
         error_embed = discord.Embed(title='Error', description=f'❌ Failed to play the radio station: {str(e)}', color=discord.Color.red())
         bot.logger.error(f'Failed to play radio station {station} in {voice_channel.name} on server {interaction.guild.name}: {str(e)}')
@@ -400,12 +429,14 @@ async def radio(interaction: discord.Interaction, station: str = 'http://radio.s
 async def disconnect(interaction: discord.Interaction):
     # Get the bot's voice channel
     voice_channel = bot.voice_clients[0] if bot.voice_clients else None
+
     # Disconnect the bot from the voice channel
     try:
         await voice_channel.disconnect()
         bot.logger.info(f'{interaction.user} disconnected from {voice_channel.name} in {interaction.guild.name}')
         disconnect_embed = discord.Embed(title='Success', description='✅ Disconnected from the voice channel.', color=discord.Color.green())
         await interaction.response.send_message(embed=disconnect_embed)
+
     except Exception as e:
         error_embed = discord.Embed(title='Error', description=f'❌ Failed to disconnect: {str(e)}', color=discord.Color.red())
         bot.logger.error(f'Failed to disconnect from Voice Channel {voice_channel.name} in {interaction.guild.name}: {str(e)}')
@@ -538,6 +569,24 @@ async def daily(interaction: discord.Interaction):
         if conn and conn.is_connected():
             cursor.close()
             conn.close()
+
+# LEADERBOARD COMMAND
+
+@tree.command(name='leaderboard', description='Shows point leaderboard')
+async def leaderboard(interaction: discord.Interaction):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id, points FROM user_points ORDER BY points DESC LIMIT 10')
+    leaders = cursor.fetchall()
+    
+    embed = discord.Embed(title="🏆 Points Leaderboard", color=discord.Color.gold())
+    for idx, (user_id, points) in enumerate(leaders, 1):
+        user = await bot.fetch_user(user_id)
+        embed.add_field(name=f"{idx}. {user.name}", value=f"{points} points", inline=False)
+    
+    await interaction.response.send_message(embed=embed)
+    cursor.close()
+    conn.close()
 
 # BALANCE COMMAND
 

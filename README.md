@@ -68,6 +68,7 @@ Ensure you have the following installed:
 |----------|-------------|
 | `/nuke` | Deletes all channels and roles in the server |
 | `/embed` | Creates a costumizable Embed |
+| `/serverinfo` | Shows the server information |
 
 ### Economic Commands
 | Command  | Description |
@@ -76,6 +77,7 @@ Ensure you have the following installed:
 | `/transfer @user [amount]` | Transfer money to another user (with a fee) |
 | `/gamble [amount]` | Gamble money |
 | `/work` | Work for money |
+| `/leaderboard` | Shows the leaderboard |
 
 ## Configuration
 Nexus includes a `banned_words.json` file where you can define words to be automatically removed from messages.
