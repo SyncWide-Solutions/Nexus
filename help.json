@@ -1,9 +1,11 @@
 {
     "/help": {
-      "description": "Returns this prompt."
+      "description": "Returns this prompt.",
+      "usage": "[command]"
     },
     "/ping": {
-      "description": "Checks if the bot is online."
+      "description": "Checks if the bot is online.",
+      "usage": "[command]"
     },
     "/kick": {
       "description": "Kicks a user from the server.",
@@ -22,27 +24,92 @@
       "usage": "@user [duration] [reason]"
     },
     "/check": {
-      "description": "Checks if a user has Nexus Premium."
+      "description": "Checks if a user has Nexus Premium.",
+      "usage": "[command]"
     },
     "/radio": {
       "description": "Plays a radio station. (Premium only)",
       "usage": "[station]"
     },
     "/disconnect": {
-      "description": "Disconnects the bot from the Voice Channel. (Premium only)"
+      "description": "Disconnects the bot from the Voice Channel. (Premium only)",
+      "usage": "[command]"
     },
     "/ai": {
       "description": "Generates a response using AI. (Premium only)",
       "usage": "[prompt]"
     },
     "/credits": {
-      "description": "Shows the credits of the bot."
+      "description": "Shows the credits of the bot.",
+      "usage": "[command]"
     },
     "/invite": {
-      "description": "Sends the invite link of the bot."
+      "description": "Sends the invite link of the bot.",
+      "usage": "[command]"
     },
     "/legal": {
-      "description": "Shows the legal information of the bot."
+      "description": "Shows the legal information of the bot.",
+      "usage": "[command]"
+    },
+    "/stick": {
+      "description": "Sticks a message to the channel.",
+      "usage": "[message]"
+    },
+    "/unstick": {
+      "description": "Unsticks a message from the channel.",
+      "usage": "[command]"
+    },
+    "/setwelcome": {
+      "description": "Sets the welcome message of the server.",
+      "usage": "[channel] [message] (you can use %user_name% and %guild_name%)"
+    },
+    "/8ball": {
+      "description": "Answers a question with a random answer.",
+      "usage": "[question]"
+    },
+    "/coinflip": {
+      "description": "Flips a coin.",
+      "usage": "[command]"
+    },
+    "/balance": {
+      "description": "Shows the balance of the user.",
+      "usage": "[command]"
+    },
+    "/daily": {
+      "description": "Gives the daily reward.",
+      "usage": "[command]"
+    },
+    "/work": {
+      "description": "Works to earn money.",
+      "usage": "[command]"
+    },
+    "/transfer": {
+      "description": "Transfers money to another user.",
+      "usage": "@user [amount]"
+    },
+    "/gamble": {
+      "description": "Gambles money.",
+      "usage": "[amount]"
+    },
+    "/leaderboard": {
+      "description": "Shows the points leaderboard.",
+      "usage": "[command]"
+    },
+    "/embed": {
+      "description": "Creates an embed.",
+      "usage": "[title] [description] [color] [timestamp]"
+    },
+    "/version": {
+      "description": "Shows the version of the bot.",
+      "usage": "[command]"
+    },
+    "/serverinfo": {
+      "description": "Shows the server information.",
+      "usage": "[command]"
+    },
+    "/nuke": {
+      "description": "Nukes the channel.",
+      "usage": "[command]"
     }
   }
   

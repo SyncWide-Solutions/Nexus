@@ -11,6 +11,8 @@ import logging
 import mysql.connector
 from mysql.connector import Error
 from logging.handlers import TimedRotatingFileHandler
+import sympy as sp
+import asyncio
 
 # Add these to your existing environment variables
 DB_HOST = "45.84.196.164"
@@ -64,6 +66,13 @@ logger = setup_logger()
 with open('banned_words.json', 'r') as f:
     banned_words = json.load(f)['banned_words']
 
+# LOAD WELCOME MESSAGE AND CHANNEL ON BOT STARTUP
+def load_welcome_data():
+    if os.path.exists('welcome_message.json'):
+        with open('welcome_message.json', 'r') as f:
+            return json.load(f)
+    return {"channel_id": None, "welcome_message": None}
+
 with open('help.json', 'r') as f:
     help_commands = json.load(f)
 
@@ -107,7 +116,7 @@ async def on_message(message):
         for word in banned_words:
             if word.lower() in msg_content:
                 await message.delete()
-                bot.logger.warning(f'Deleted message from {message.author} containing banned word')
+                bot.logger.warning(f'Deleted message from {message.author} containing banned word: {word}')
                 embed = discord.Embed(
                     title="Message Deleted",
                     description=f"Your message contained a banned word.",
@@ -117,6 +126,20 @@ async def on_message(message):
                 return
 
         await bot.process_commands(message)
+
+# SEND WELCOME MESSAGE ON MEMBER JOIN
+@bot.event
+async def on_member_join(member):
+    welcome_data = load_welcome_data()
+    channel_id = welcome_data.get("channel_id")
+    welcome_message = welcome_data.get("welcome_message")
+
+    if channel_id and welcome_message:
+        channel = bot.get_channel(channel_id)
+        if channel:
+            # Replace placeholders with actual values
+            formatted_message = welcome_message.replace("%user_name%", member.name).replace("%guild_name%", member.guild.name)
+            await channel.send(formatted_message)
 
 # TEST COMMANDS
 
@@ -286,6 +309,107 @@ async def serverinfo(interaction: discord.Interaction):
     embed.add_field(name="Member Count", value=guild.member_count, inline=True)
     embed.add_field(name="Channels", value=len(guild.channels), inline=True)
     embed.set_thumbnail(url=guild.icon.url if guild.icon else None)
+    await interaction.response.send_message(embed=embed)
+
+# STICK COMMAND
+
+# Create a dictionary to hold sticky messages for each user
+sticky_messages = {}
+
+@tree.command(name='stick', description='Makes a sticky message.')
+@commands.has_permissions(manage_messages=True)
+async def stick(interaction: discord.Interaction, *, content: str):
+    # Acknowledge the command
+    await interaction.response.send_message(content, ephemeral=True)  
+    await interaction.channel.purge(limit=1)  # Purge the user's command message
+
+    # Send the sticky message
+    sticky_message = await interaction.channel.send(content)
+
+    # Store the sticky message in the dictionary
+    sticky_messages[interaction.user.id] = sticky_message
+
+    # Function to delete the sticky message if a new message is sent
+    async def on_message(message):
+        if message.author.id == interaction.user.id:
+            # Check if the sticky message exists
+            if interaction.user.id in sticky_messages:
+                await sticky_messages[interaction.user.id].delete()
+                # Send a new sticky message
+                sticky_messages[interaction.user.id] = await interaction.channel.send(content)
+
+    # Add the message event listener
+    bot.add_listener(on_message, 'on_message')
+
+    embed = discord.Embed(
+        title="Sticky Message Created",
+        description=f"Sticky message: {content}",
+        color=discord.Color.green()
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+# UNSTICK COMMAND
+
+@tree.command(name='unstick', description='Removes your sticky message.')
+@commands.has_permissions(manage_messages=True)
+async def unstick(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    # Check if the user has a sticky message
+    if user_id in sticky_messages:
+        # Delete the sticky message
+        await sticky_messages[user_id].delete()
+        # Remove the sticky message from the dictionary
+        del sticky_messages[user_id]
+
+        embed = discord.Embed(
+            title="Sticky Message Removed",
+            description="Your sticky message has been removed.",
+            color=discord.Color.green()
+        )
+        await interaction.response.send_message(embed=embed)
+    else:
+        embed = discord.Embed(
+            title="No Sticky Message Found",
+            description="You don't have a sticky message to remove.",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed)
+
+# WELCOME MESSAGE COMMAND
+
+@tree.command(name='setwelcome', description='Set the welcome message and channel for new members.')
+@commands.has_permissions(manage_guild=True)
+async def set_welcome(interaction: discord.Interaction, channel: discord.TextChannel, *, message: str = None):
+
+    welcome_data = {
+        "channel_id": channel.id,
+        "welcome_message": message if message else "Welcome to the server!"
+    }
+
+    # Save the welcome message and channel ID to a JSON file
+    with open('welcome_message.json', 'w') as f:
+        json.dump(welcome_data, f)
+
+    embed = discord.Embed(
+        title="Welcome Message Set",
+        description=f"The welcome message has been set to:\n{welcome_data['welcome_message']}\nIn channel: {channel.mention}",
+        color=discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
+
+# COINFLIP COMMAND
+
+@tree.command(name='coinflip', description='Flip a coin.')
+async def coinflip(interaction: discord.Interaction):
+    result = random.choice(["Heads", "Tails"])
+
+    embed = discord.Embed(
+        title="Coin Flip",
+        description=f"The coin landed on **{result}**!",
+        color=discord.Color.gold()
+    )
+    
     await interaction.response.send_message(embed=embed)
 
 # EIGHTBALL COMMAND
@@ -784,7 +908,7 @@ async def gamble(interaction: discord.Interaction, bet_amount: int):
 
 # WORK COMMAND
 
-@tree.command(name='work', description='Work for points')
+@tree.command(name='work', description='Work for points and solve a math question.')
 async def work(interaction: discord.Interaction):
     conn = None
     try:
@@ -796,37 +920,71 @@ async def work(interaction: discord.Interaction):
         result = cursor.fetchone()
 
         now = datetime.now()
-        
+
         # If user exists and has worked before
         if result and result[0]:
             time_since_last = now - result[0]
             if time_since_last < timedelta(hours=24):
                 await interaction.response.send_message("You've already worked today. Come back tomorrow!")
                 return
-        
-        # Generate random points between 10 and 50
-        points = random.randint(10, 50)
 
-        # Insert or update user's points and last_worked time
-        if result:
-            cursor.execute('UPDATE user_points SET points = points + %s, last_worked = %s WHERE user_id = %s',
-                         (points, now, interaction.user.id))
-        else:
-            cursor.execute('INSERT INTO user_points (user_id, points, streak, last_worked) VALUES (%s, %s, %s, %s)',
-                         (interaction.user.id, points, 0, now))
+        # Generate a hard math question
+        x = sp.symbols('x')
+        equation = sp.Eq(7 * x - 30, 70)  # Example equation: 7x - 30 = 70
+        solution = sp.solve(equation, x)[0]
 
-        conn.commit()
+        # Create the question string
+        question_str = f"Solve the equation: 7x - 30 = 70. What is x?"
 
-        embed = discord.Embed(title="Work Complete!", 
-                            description=f"You worked and earned {points} points!", 
-                            color=discord.Color.green())
-        bot.logger.info(f'{interaction.user} worked and earned {points} points in {interaction.guild.name}')
-        await interaction.response.send_message(embed=embed)
-        
+        # Ask the user for their answer
+        await interaction.response.send_message(question_str)
+
+        def check(m):
+            return m.author == interaction.user and m.channel == interaction.channel
+
+        try:
+            # Wait for the user's response
+            msg = await bot.wait_for('message', check=check, timeout=30.0)
+            user_answer = msg.content
+
+            # Evaluate the user's answer and the solution
+            user_answer_eval = sp.sympify(user_answer)  # Convert user answer to a sympy expression
+            if user_answer_eval == solution:
+                # Generate random points between 10 and 50
+                points = random.randint(10, 50)
+
+                # Insert or update user's points and last_worked time
+                if result:
+                    cursor.execute('UPDATE user_points SET points = points + %s, last_worked = %s WHERE user_id = %s',
+                                   (points, now, interaction.user.id))
+                else:
+                    cursor.execute('INSERT INTO user_points (user_id, points, streak, last_worked) VALUES (%s, %s, %s, %s)',
+                                   (interaction.user.id, points, 0, now))
+
+                conn.commit()
+
+                embed = discord.Embed(title="Work Complete!",
+                                      description=f"You worked and earned {points} points!",
+                                      color=discord.Color.green())
+                bot.logger.info(f'{interaction.user} worked and earned {points} points in {interaction.guild.name}')
+                await interaction.channel.send(embed=embed)
+            else:
+                # Update last_worked time even if the answer is incorrect
+                cursor.execute('UPDATE user_points SET last_worked = %s WHERE user_id = %s', (now, interaction.user.id))
+                conn.commit()
+                await interaction.channel.send(f"❌ Incorrect! The correct answer is {solution}. You did not earn any points.")
+
+        except asyncio.TimeoutError:
+            # Update last_worked time if the user takes too long
+            cursor.execute('UPDATE user_points SET last_worked = %s WHERE user_id = %s', (now, interaction.user.id))
+            conn.commit()
+            await interaction.channel.send("⏰ You took too long to respond! You cannot work again today.")
+
     except Exception as e:
         bot.logger.error(f"Database error in work: {e}")
-        await interaction.response.send_message("Error processing your work. Please try again.")
-    
+        if not interaction.response.is_done():  # Check if the interaction has already been responded to
+            await interaction.response.send_message("Error processing your work. Please try again.")
+
     finally:
         if conn and conn.is_connected():
             cursor.close()

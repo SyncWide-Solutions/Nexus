@@ -47,6 +47,8 @@ Ensure you have the following installed:
 | `/help` | Displays a list of available commands |
 | `/legal` | Displays the Bots Legal Information |
 | `/version` | Shows the current version of the bot |
+| `/8ball` | Ask a question to the 8ball |
+| `/coinflip` | Flip a coin |
 
 ### Moderation Commands
 | Command  | Description |
@@ -67,9 +69,12 @@ Ensure you have the following installed:
 ### Costumization Commands
 | Command  | Description |
 |----------|-------------|
-| `/nuke` | Deletes all channels and roles in the server |
-| `/embed` | Creates a costumizable Embed |
+| `/nuke [messages]` | Deletes all channels channel |
+| `/embed [title] [description] [color] [timestamp]` | Creates a costumizable Embed |
 | `/serverinfo` | Shows the server information |
+| `/setwelcome [channel] [message]` | Set the welcome message |
+| `/stick [message]` | Stick a message to the top of the channel |
+| `/unstick` | Unstick a message |
 
 ### Economic Commands
 | Command  | Description |
@@ -79,6 +84,7 @@ Ensure you have the following installed:
 | `/gamble [amount]` | Gamble money |
 | `/work` | Work for money |
 | `/leaderboard` | Shows the leaderboard |
+| `/daily` | Get your daily money |
 
 ## Configuration
 Nexus includes a `banned_words.json` file where you can define words to be automatically removed from messages.
