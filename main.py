@@ -1017,5 +1017,3 @@ async def legal(interaction: discord.Interaction):
 
 if __name__ == "__main__":
     bot.run(TOKEN)
-
-# This should be the 1000th line of code (goal).
