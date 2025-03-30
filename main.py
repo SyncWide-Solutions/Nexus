@@ -7,18 +7,25 @@ import json
 import openai
 import asyncio
 import random
+import requests
 import logging
 import mysql.connector
 from mysql.connector import Error
 from logging.handlers import TimedRotatingFileHandler
+from uptime_kuma_api import UptimeKumaApi
 import sympy as sp
 import asyncio
 
+load_dotenv()
+
 # Add these to your existing environment variables
-DB_HOST = "45.84.196.164"
-DB_USER = "syncwide"
-DB_PASSWORD = "1Subfuerlinus!"
-DB_NAME = "main"
+DB_HOST = os.getenv("DB_HOST")
+DB_USER = os.getenv("DB_USERNAME")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
+
+api = UptimeKumaApi(os.getenv("UPTIME_KUMA_URL"))
+api.login(os.getenv("UPTIME_KUMA_USERNAME"), os.getenv("UPTIME_KUMA_PASSWORD"))
 
 def get_db_connection():
     return mysql.connector.connect(
@@ -27,9 +34,6 @@ def get_db_connection():
         password=DB_PASSWORD,
         database=DB_NAME
     )
-
-
-load_dotenv()
 
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
@@ -85,15 +89,13 @@ tree = bot.tree
 
 # UPDATE PRESENCE
 
-@tasks.loop(seconds=1)
-async def update_presence():
-    await bot.change_presence(activity=discord.Game(name=f"Currently on {len(bot.guilds)} Servers!"))
-
-# BOT STARTUP
-
 @tasks.loop(seconds=60)
 async def update_presence():
+    response = requests.get('https://status.syncwi.de/api/push/SEu8vCo9vY')
+    bot.logger.info(f'Status API Response: {response.status_code}')
     await bot.change_presence(activity=discord.Game(name=f'Currently on {len(bot.guilds)} servers!'))
+
+# BOT STARTUP
 
 @bot.event
 async def on_ready():
@@ -171,6 +173,27 @@ async def help(interaction: discord.Interaction):
 @tree.command(name='version', description='Displays the bot version.')
 async def version(interaction: discord.Interaction):
     embed = discord.Embed(title="Bot Version", description="v0.9.0b", color=discord.Color.green())
+    await interaction.response.send_message(embed=embed)
+
+# STATUS COMMAND#
+
+@tree.command(name='status', description='Displays the status of every Server run by SyncWide Solutions.')
+async def status(interaction: discord.Interaction):
+    embed = discord.Embed(title="SyncWide Solutions Status", color=discord.Color.green())
+    
+    # Fetch the server statuses from Uptime Kuma
+    try:
+        servers = api.get_monitors()  # Call without await if it's synchronous
+        bot.logger.info(f"Fetched servers: {servers}")  # Log the fetched server data
+
+        for server in servers:
+            # Use the 'active' key to determine the server status
+            server_status = "Online" if server['active'] else "Offline"
+            embed.add_field(name=server['name'], value=f"Status: {server_status}", inline=False)
+    except Exception as e:
+        embed.description = "Failed to fetch server statuses."
+        bot.logger.error(f"Error fetching server statuses: {e}")
+
     await interaction.response.send_message(embed=embed)
 
 # MODERATION COMMANDS
