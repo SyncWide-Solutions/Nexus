@@ -172,7 +172,7 @@ async def help(interaction: discord.Interaction):
 
 @tree.command(name='version', description='Displays the bot version.')
 async def version(interaction: discord.Interaction):
-    embed = discord.Embed(title="Bot Version", description="v0.9.0b", color=discord.Color.green())
+    embed = discord.Embed(title="Bot Version", description="v0.9.5", color=discord.Color.green())
     await interaction.response.send_message(embed=embed)
 
 # STATUS COMMAND#
