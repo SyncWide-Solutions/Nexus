@@ -29,8 +29,16 @@ Ensure you have the following installed:
    ```
 3. Create a `.env` file in the root directory and add your Discord bot token:
    ```
-   DISCORD_BOT_TOKEN=your_token_here
-   OPENAI_API_KEY=your_api_key_here
+   DISCORD_BOT_TOKEN=your_discord_bot_token
+   OPENAI_API_KEY=your_openai_api_key
+   UPTIME_KUMA_PASSWORD=your_uptime_kuma_password
+   UPTIME_KUMA_URL=your_uptime_kuma_url
+   UPTIME_KUMA_USERNAME=your_uptime_kuma_username
+   FILTER=TRUE/FALSE
+   DB_HOST=your_db_host
+   DB_USERNAME=your_db_username
+   DB_PASSWORD=your_db_password
+   DB_NAME=your_db_name
    ```
 4. Run the bot:
    ```bash
@@ -42,6 +50,7 @@ Ensure you have the following installed:
 | Command  | Description |
 |----------|-------------|
 | `/ping` | Checks if the bot is online |
+| `/status` | Shows the current status of every SyncWide Solutions Server |
 | `/invite` | Generates an invite link for the bot |
 | `/credits` | Shows the bot developer information |
 | `/help` | Displays a list of available commands |

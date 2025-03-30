@@ -7,3 +7,4 @@ python-dotenv
 openai
 logging
 mysql-connector-python
+uptime-kuma-api
